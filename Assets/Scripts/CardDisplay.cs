@@ -1,8 +1,11 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems; // ★追加：イベントシステムを使用
 
+/// <summary>
+/// カードの表示（ビュー）とユーザーインタラクションを管理するコンポーネントです。
+/// IPointer*Handlerインターフェースを実装し、クリックやドラッグイベントを処理します。
+/// </summary>
 // IPointerDownHandler: クリック/タップ開始
 // IDragHandler: ドラッグ中
 // IPointerClickHandler: クリック/タップ完了
@@ -27,6 +30,11 @@ public class CardDisplay : MonoBehaviour,
     // 画面に表示するテキストコンポーネント (オプション。今回は省略可)
     // public TextMeshPro textDisplay; 
     // ★追加: シーン全体で選択されたカードのリストを管理
+    // ★追加: シーン全体で選択されたカードのリストを管理
+    /// <summary>
+    /// 現在シーン内で選択されている全てのCardDisplayインスタンスを格納する静的リストです。
+    /// まとめてドラッグする際に利用されます。
+    /// </summary>
     public static List<CardDisplay> SelectedCards = new List<CardDisplay>();
     private Vector3 initialDragPosition; // ドラッグ開始時の位置を記憶
 
@@ -36,6 +44,10 @@ public class CardDisplay : MonoBehaviour,
 
     // --- 初期化と描画 ---
 
+    /// <summary>
+    /// カードゲームオブジェクトを初期化し、対応するデータ（モデル）を関連付けます。
+    /// </summary>
+    /// <param name="data">このカードに関連付けるCardDataインスタンス。</param>
     public void Initialize(CardData data)
     {
         this.cardData = data;
@@ -47,6 +59,10 @@ public class CardDisplay : MonoBehaviour,
     }
 
     // 選択状態をトグルする関数
+    /// <summary>
+    /// カードの選択状態 (isSelected) をトグル（反転）します。
+    /// 選択状態が変更された際、静的リスト SelectedCards の更新と視覚的な反映（ハイライト/解除）を行います。
+    /// </summary>
     public void ToggleSelection()
     {
         cardData.isSelected = !cardData.isSelected;
@@ -58,19 +74,22 @@ public class CardDisplay : MonoBehaviour,
             {
                 SelectedCards.Add(this);
             }
-            // ★視覚的なフィードバック（例: アウトライン、色変更）をここに実装
-            spriteRenderer.color = Color.yellow; // 簡易的なハイライト
         }
         else
         {
             // 選択リストから削除し、視覚的なフィードバックを無効化
             SelectedCards.Remove(this);
-            spriteRenderer.color = Color.white; // 通常の色に戻す
         }
+        UpdateVisuals(); // 視覚的なフィードバック（色）を更新
+
         // TODO: ここでGameManagerを介して永続化処理を呼び出す
     }
 
     // モデルの状態に基づいて表示を更新する関数
+    /// <summary>
+    /// CardDataの状態に基づき、カードの視覚的な表示を更新します。
+    /// スプライト（裏表）の切り替え、選択状態の色反映、Z座標（重ね順）の設定を行います。
+    /// </summary>
     public void UpdateVisuals()
     {
         // 1. 画像 (裏表) の切り替え
@@ -104,6 +123,16 @@ public class CardDisplay : MonoBehaviour,
     }
 
     // CardDisplay.cs 内に追加
+    /// <summary>
+    /// **ユーザー操作: マウスの左ボタンが押された瞬間 / タッチが開始された瞬間**
+    /// <para>ドラッグ操作の準備を行います。</para>
+    /// <list type="bullet">
+    /// <item>一時的にZ軸を最前面（-0.1f）に移動させます。</item>
+    /// <item>ドラッグオフセットを計算します。</item>
+    /// <item>カードが未選択の場合、この時点で選択状態（黄色）にします。</item>
+    /// <item>全ての選択カードをZ軸の最前面に移動させます。</item>
+    /// </list>
+    /// </summary>
     public void OnPointerDown(PointerEventData eventData)
     {
         // 1. Z-Indexを最前面にする（修正済みロジック）
@@ -121,12 +150,6 @@ public class CardDisplay : MonoBehaviour,
         // ★追加: 選択状態の確認とドラッグ準備
         initialDragPosition = transform.position; // ドラッグ開始時の位置を記録
 
-        // 選択されていないカードをドラッグ開始した場合、まず選択する
-        if (!cardData.isSelected)
-        {
-            ToggleSelection();
-        }
-
         // Z-Indexを最前面に (選択カード全てを一時的に最前面に)
         foreach (var card in SelectedCards)
         {
@@ -138,9 +161,37 @@ public class CardDisplay : MonoBehaviour,
         }
     }
 
+    /// <summary>
+    /// **ユーザー操作: マウスの左ボタンを押したままカーソルが移動している間**
+    /// <para>カードをカーソルに追従させます。カードが選択状態にある場合、SelectedCardsリスト内の全てのカードを同時に移動させます（まとめてドラッグ）。</para>
+    /// </summary>
     public void OnDrag(PointerEventData eventData)
     {
-        isDragging = true;
+        if (eventData.button != PointerEventData.InputButton.Left)
+        { 
+            return;
+        }
+
+        // OnDragが呼ばれたら、ドラッグ中フラグを立てる
+        if (!isDragging)
+        {
+            isDragging = true;
+
+            // ★新規ロジック★:
+            // ドラッグ開始時にこのカードが選択されていない場合、
+            // 他の全てのカードの選択を解除し、このカードを単独で選択状態にする。
+            if (!cardData.isSelected)
+            {
+                // まず他の全ての選択を解除
+                var cardsToDeselect = new List<CardDisplay>(SelectedCards);
+                foreach (var card in cardsToDeselect)
+                {
+                    if (card != this) card.ToggleSelection();
+                }
+                // そしてこのカードを選択
+                ToggleSelection();
+            }
+        }
 
         // 1. 現在のカードの新しい位置を計算
         Vector3 curScreenPoint = eventData.position;
@@ -168,6 +219,14 @@ public class CardDisplay : MonoBehaviour,
 
     // CardDisplay.cs の OnEndDrag を修正
 
+    /// <summary>
+    /// **ユーザー操作: マウスの左ボタンが離された瞬間（ドラッグ操作後）**
+    /// <para>ドラッグ操作の終了を処理します。</para>
+    /// <list type="bullet">
+    /// <item>isDraggingフラグをリセットします。</item>
+    /// <item>※このメソッドでは、選択状態の解除は行いません（シングルクリックで解除するため）。</item>
+    /// </list>
+    /// </summary>
     public void OnEndDrag(PointerEventData eventData)
     {
         isDragging = false;
@@ -177,14 +236,23 @@ public class CardDisplay : MonoBehaviour,
 
         // ★追加: ドラッグ終了後、全カードの選択状態を解除 (必須ではありませんが、一般的なUX)
         // Listをコピーしてから解除しないと、ループ中にリストが変更されエラーになる
-        var cardsToDeselect = new List<CardDisplay>(SelectedCards);
-        foreach (var card in cardsToDeselect)
-        {
-            card.ToggleSelection(); // isSelected=false になり、リストからも削除される
-        }
+        //var cardsToDeselect = new List<CardDisplay>(SelectedCards);
+        //foreach (var card in cardsToDeselect)
+        //{
+        //    card.ToggleSelection(); // isSelected=false になり、リストからも削除される
+        //}
     }
 
     // CardDisplay.cs 内に追加
+    /// <summary>
+    /// **ユーザー操作: マウスの左ボタンが押されてすぐに離された瞬間（ドラッグと判定されない場合）**
+    /// <para>クリック回数に基づき、選択または裏返し操作を実行します。</para>
+    /// <list type="bullet">
+    /// <item>ドラッグ操作であった場合は、このイベントを無視します。</item>
+    /// <item>クリック回数 == 2 (ダブルクリック): 選択状態を変更せず、カードの裏表を反転します。（要件④）</item>
+    /// <item>クリック回数 == 1 (シングルクリック): カードの選択状態をトグル（選択/非選択）します。（要件①②）</item>
+    /// </list>
+    /// </summary>
     public void OnPointerClick(PointerEventData eventData)
     {
         // ドラッグ操作だった場合は、クリックイベントを無視する
@@ -199,6 +267,7 @@ public class CardDisplay : MonoBehaviour,
             // ① ダブルクリックで裏返しをトグル
             if (eventData.clickCount == 2)
             {
+                Debug.Log($"eventData.clickCount == 2");
                 // CardDataの状態をトグルするロジック
                 if (cardData.State == CardData.CardState.FACE_UP)
                 {
@@ -208,6 +277,8 @@ public class CardDisplay : MonoBehaviour,
                 {
                     cardData.State = CardData.CardState.FACE_UP;
                 }
+
+                ToggleSelection();
                 UpdateVisuals();
 
                 // 処理を終了 (選択状態の変更は行わない)
@@ -217,6 +288,7 @@ public class CardDisplay : MonoBehaviour,
             // ② シングルクリックで選択状態をトグル
             if (eventData.clickCount == 1)
             {
+                Debug.Log($"eventData.clickCount == 1");
                 ToggleSelection();
             }
         }
