@@ -2,12 +2,12 @@ using UnityEngine;
 
 public class TestInitializer : MonoBehaviour
 {
-    public CardDisplay cardPrefab; // Card Prefab‚ğInspector‚©‚çŠ„‚è“–‚Ä‚é
+    public CardDisplay cardPrefab; // Card Prefabã‚’Inspectorã‹ã‚‰å‰²ã‚Šå½“ã¦ã‚‹
     public Vector3 initialPosition = new Vector3(-3, 0, 0);
 
     void Start()
     {
-        // 1. V‚µ‚¢CardData‚ğì¬
+        // 1. æ–°ã—ã„CardDataã‚’ä½œæˆ
         CardData newCardData = new CardData
         {
             Id = "TestCard",
@@ -17,10 +17,10 @@ public class TestInitializer : MonoBehaviour
             Position = initialPosition
         };
 
-        // 2. Prefab‚ğƒCƒ“ƒXƒ^ƒ“ƒX‰»
+        // 2. Prefabã‚’ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹åŒ–
         CardDisplay newCard = Instantiate(cardPrefab, initialPosition, Quaternion.identity);
 
-        // 3. CardDisplay‚ğ‰Šú‰»
+        // 3. CardDisplayã‚’åˆæœŸåŒ–
         newCard.Initialize(newCardData);
     }
 }

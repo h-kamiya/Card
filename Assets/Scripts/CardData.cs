@@ -1,21 +1,21 @@
 using UnityEngine;
-using System; // Serializable‚ğg—p‚·‚é‚½‚ß‚É•K—v
+using System; // Serializableã‚’ä½¿ç”¨ã™ã‚‹ãŸã‚ã«å¿…è¦
 
-// Unity‚ÌƒGƒfƒBƒ^[‚Å•\¦E•ÒW‰Â”\‚É‚·‚é
+// Unityã®ã‚¨ãƒ‡ã‚£ã‚¿ãƒ¼ã§è¡¨ç¤ºãƒ»ç·¨é›†å¯èƒ½ã«ã™ã‚‹
 [Serializable]
 public class CardData
 {
-    // C#‚Ì—ñ‹“Œ^ (Enum) ‚ÅƒJ[ƒh‚Ìó‘Ô‚ğ’è‹`
-    public enum CardState { FACE_UP, FACE_DOWN_ALL } // ŠÈ—ª‰»‚³‚ê‚½ó‘Ô
+    // C#ã®åˆ—æŒ™å‹ (Enum) ã§ã‚«ãƒ¼ãƒ‰ã®çŠ¶æ…‹ã‚’å®šç¾©
+    public enum CardState { FACE_UP, FACE_DOWN_ALL } // ç°¡ç•¥åŒ–ã•ã‚ŒãŸçŠ¶æ…‹
 
-    // ƒf[ƒ^iƒ‚ƒfƒ‹j‚Ì‘®«
-    public string Id;                  // —á: "S-A" (ƒXƒy[ƒh‚ÌƒG[ƒX)
-    public string Text;                // —á: "SA"
-    public string LocationId;          // —á: "DECK", "HAND_ZONE", "DISCARD_ZONE"
-    public CardState State;           // ƒJ[ƒh‚Ì— •\‚Ìó‘Ô
-    public int ZIndex;                 // d‚Ë‡ (ƒhƒ‰ƒbƒO‚ÉÅ‚à‚‚­‚È‚é)
-    // š’Ç‰Á: ‘I‘ğó‘Ô‚ğ•Û‚·‚éƒtƒ‰ƒO
+    // ãƒ‡ãƒ¼ã‚¿ï¼ˆãƒ¢ãƒ‡ãƒ«ï¼‰ã®å±æ€§
+    public string Id;                  // ä¾‹: "S-A" (ã‚¹ãƒšãƒ¼ãƒ‰ã®ã‚¨ãƒ¼ã‚¹)
+    public string Text;                // ä¾‹: "SA"
+    public string LocationId;          // ä¾‹: "DECK", "HAND_ZONE", "DISCARD_ZONE"
+    public CardState State;           // ã‚«ãƒ¼ãƒ‰ã®è£è¡¨ã®çŠ¶æ…‹
+    public int ZIndex;                 // é‡ã­é † (ãƒ‰ãƒ©ãƒƒã‚°æ™‚ã«æœ€ã‚‚é«˜ããªã‚‹)
+    // â˜…è¿½åŠ : é¸æŠçŠ¶æ…‹ã‚’ä¿æŒã™ã‚‹ãƒ•ãƒ©ã‚°
     public bool isSelected = false;
-    // ƒQ[ƒ€ƒIƒuƒWƒFƒNƒgiƒrƒ…[j‚ªQÆ‚·‚é‚½‚ß‚Ìî•ñ
-    public Vector3 Position;           // ‰æ–Êã‚ÌÅIÀ•W
+    // ã‚²ãƒ¼ãƒ ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆï¼ˆãƒ“ãƒ¥ãƒ¼ï¼‰ãŒå‚ç…§ã™ã‚‹ãŸã‚ã®æƒ…å ±
+    public Vector3 Position;           // ç”»é¢ä¸Šã®æœ€çµ‚åº§æ¨™
 }

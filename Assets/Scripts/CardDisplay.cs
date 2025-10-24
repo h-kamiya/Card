@@ -1,67 +1,67 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems; // ���ǉ��F�C�x���g�V�X�e�����g�p
+using UnityEngine.EventSystems; // ★追加：イベントシステムを使用
 
 /// <summary>
-/// �J�[�h�̕\���i�r���[�j�ƃ��[�U�[�C���^���N�V�������Ǘ�����R���|�[�l���g�ł��B
-/// IPointer*Handler�C���^�[�t�F�[�X���������A�N���b�N��h���b�O�C�x���g���������܂��B
+/// カードの表示（ビュー）とユーザーインタラクションを管理するコンポーネントです。
+/// IPointer*Handlerインターフェースを実装し、クリックやドラッグイベントを処理します。
 /// </summary>
-// IPointerDownHandler: �N���b�N/�^�b�v�J�n
-// IDragHandler: �h���b�O��
-// IPointerClickHandler: �N���b�N/�^�b�v����
-// IEndDragHandler: �h���b�O�I��
+// IPointerDownHandler: クリック/タップ開始
+// IDragHandler: ドラッグ中
+// IPointerClickHandler: クリック/タップ完了
+// IEndDragHandler: ドラッグ終了
 public class CardDisplay : MonoBehaviour,
     IPointerDownHandler,
     IDragHandler,
     IPointerClickHandler,
     IEndDragHandler
 {
-    [Header("�A�Z�b�g�̎Q��")]
-    // 2D�̏ꍇ�ASpriteRenderer�ŉ摜��\��
+    [Header("アセットの参照")]
+    // 2Dの場合、SpriteRendererで画像を表示
     public SpriteRenderer spriteRenderer;
 
-    // �p�ӂ����e�N�X�`���A�Z�b�g��Unity�G�f�B�^����ݒ�
-    public Sprite faceSprite; // �\�ʂ̉摜 (�X�y�[�h��A�Ȃ�)
-    public Sprite backSprite; // ���ʂ̉摜 (���ʂ̗���)
+    // 用意したテクスチャアセットをUnityエディタから設定
+    public Sprite faceSprite; // 表面の画像 (スペードのAなど)
+    public Sprite backSprite; // 裏面の画像 (共通の裏面)
 
     [HideInInspector]
-    public CardData cardData; // ���̃Q�[���I�u�W�F�N�g�ɑΉ�����CardData�C���X�^���X
+    public CardData cardData; // このゲームオブジェクトに対応するCardDataインスタンス
 
-    // ��ʂɕ\������e�L�X�g�R���|�[�l���g (�I�v�V�����B����͏ȗ���)
+    // 画面に表示するテキストコンポーネント (オプション。今回は省略可)
     // public TextMeshPro textDisplay; 
-    // ���ǉ�: �V�[���S�̂őI�����ꂽ�J�[�h�̃��X�g���Ǘ�
-    // ���ǉ�: �V�[���S�̂őI�����ꂽ�J�[�h�̃��X�g���Ǘ�
+    // ★追加: シーン全体で選択されたカードのリストを管理
+    // ★追加: シーン全体で選択されたカードのリストを管理
     /// <summary>
-    /// ���݃V�[�����őI������Ă���S�Ă�CardDisplay�C���X�^���X���i�[����ÓI���X�g�ł��B
-    /// �܂Ƃ߂ăh���b�O����ۂɗ��p����܂��B
+    /// 現在シーン内で選択されている全てのCardDisplayインスタンスを格納する静的リストです。
+    /// まとめてドラッグする際に利用されます。
     /// </summary>
     public static List<CardDisplay> SelectedCards = new List<CardDisplay>();
-    private Vector3 initialDragPosition; // �h���b�O�J�n���̈ʒu���L��
+    private Vector3 initialDragPosition; // ドラッグ開始時の位置を記憶
 
-    // �h���b�O�����p�̕ϐ�
-    private Vector3 dragOffset; // �h���b�O�J�n���̃}�E�X/�I�u�W�F�N�g�̑��Έʒu
-    private bool isDragging = false; // �h���b�O�����ǂ����̃t���O
+    // ドラッグ処理用の変数
+    private Vector3 dragOffset; // ドラッグ開始時のマウス/オブジェクトの相対位置
+    private bool isDragging = false; // ドラッグ中かどうかのフラグ
 
-    // --- �������ƕ`�� ---
+    // --- 初期化と描画 ---
 
     /// <summary>
-    /// �J�[�h�Q�[���I�u�W�F�N�g�����������A�Ή�����f�[�^�i���f���j���֘A�t���܂��B
+    /// カードゲームオブジェクトを初期化し、対応するデータ（モデル）を関連付けます。
     /// </summary>
-    /// <param name="data">���̃J�[�h�Ɋ֘A�t����CardData�C���X�^���X�B</param>
+    /// <param name="data">このカードに関連付けるCardDataインスタンス。</param>
     public void Initialize(CardData data)
     {
         this.cardData = data;
-        // �f�[�^ID�Ɋ�Â���Sprite��ݒ肷�郍�W�b�N (��: Resources.Load<Sprite>(data.Id))
-        // ����͊ȗ����̂��߁AInitialize�O�Ɏ蓮�� 'faceSprite' ��ݒ肷����̂Ƃ��܂��B
+        // データIDに基づいてSpriteを設定するロジック (例: Resources.Load<Sprite>(data.Id))
+        // 今回は簡略化のため、Initialize前に手動で 'faceSprite' を設定するものとします。
 
-        // ����`��
+        // 初回描画
         UpdateVisuals();
     }
 
-    // �I����Ԃ��g�O������֐�
+    // 選択状態をトグルする関数
     /// <summary>
-    /// �J�[�h�̑I����� (isSelected) ���g�O���i���]�j���܂��B
-    /// �I����Ԃ��ύX���ꂽ�ہA�ÓI���X�g SelectedCards �̍X�V�Ǝ��o�I�Ȕ��f�i�n�C���C�g/�����j���s���܂��B
+    /// カードの選択状態 (isSelected) をトグル（反転）します。
+    /// 選択状態が変更された際、静的リスト SelectedCards の更新と視覚的な反映（ハイライト/解除）を行います。
     /// </summary>
     public void ToggleSelection()
     {
@@ -69,7 +69,7 @@ public class CardDisplay : MonoBehaviour,
 
         if (cardData.isSelected)
         {
-            // �I�����X�g�ɒǉ����A���o�I�ȃt�B�[�h�o�b�N��L����
+            // 選択リストに追加し、視覚的なフィードバックを有効化
             if (!SelectedCards.Contains(this))
             {
                 SelectedCards.Add(this);
@@ -77,93 +77,93 @@ public class CardDisplay : MonoBehaviour,
         }
         else
         {
-            // �I�����X�g����폜���A���o�I�ȃt�B�[�h�o�b�N�𖳌���
+            // 選択リストから削除し、視覚的なフィードバックを無効化
             SelectedCards.Remove(this);
         }
-        UpdateVisuals(); // ���o�I�ȃt�B�[�h�o�b�N�i�F�j���X�V
+        UpdateVisuals(); // 視覚的なフィードバック（色）を更新
 
-        // TODO: ������GameManager����ĉi�����������Ăяo��
+        // TODO: ここでGameManagerを介して永続化処理を呼び出す
     }
 
-    // ���f���̏�ԂɊ�Â��ĕ\�����X�V����֐�
+    // モデルの状態に基づいて表示を更新する関数
     /// <summary>
-    /// CardData�̏�ԂɊ�Â��A�J�[�h�̎��o�I�ȕ\�����X�V���܂��B
-    /// �X�v���C�g�i���\�j�̐؂�ւ��A�I����Ԃ̐F���f�AZ���W�i�d�ˏ��j�̐ݒ���s���܂��B
+    /// CardDataの状態に基づき、カードの視覚的な表示を更新します。
+    /// スプライト（裏表）の切り替え、選択状態の色反映、Z座標（重ね順）の設定を行います。
     /// </summary>
     public void UpdateVisuals()
     {
-        // 1. �摜 (���\) �̐؂�ւ�
+        // 1. 画像 (裏表) の切り替え
         if (cardData.State == CardData.CardState.FACE_UP)
         {
             spriteRenderer.sprite = faceSprite;
-            // textDisplay.text = cardData.Text; // �e�L�X�g���\��
+            // textDisplay.text = cardData.Text; // テキストも表示
         }
-        else // FACE_DOWN_ALL �̏ꍇ
+        else // FACE_DOWN_ALL の場合
         {
             spriteRenderer.sprite = backSprite;
-            // textDisplay.text = "???"; // ���ʕ\��
+            // textDisplay.text = "???"; // 裏面表示
         }
 
-        // ���ǉ�: �I����Ԃ̏����`��𔽉f
+        // ★追加: 選択状態の初期描画を反映
         spriteRenderer.color = cardData.isSelected ? Color.yellow : Color.white;
 
-        // 2. �ʒu�Əd�ˏ��̍X�V
-        // transform.position = cardData.Position; // �ړ��̓h���b�O�Œ��ڍs�����߁A�����ł�ZIndex�̂ݔ��f
+        // 2. 位置と重ね順の更新
+        // transform.position = cardData.Position; // 移動はドラッグで直接行うため、ここではZIndexのみ反映
 
-        // ZIndex�Ɋ�Â���Z���W�̓K�p
-        // ZIndex�͏d�ˏ������߂邽�߂̒l�BZ�l���傫���قǎ�O�ɕ\������܂��B
+        // ZIndexに基づいたZ座標の適用
+        // ZIndexは重ね順を決めるための値。Z値が大きいほど手前に表示されます。
         transform.position = new Vector3(
             transform.position.x,
             transform.position.y,
-            -cardData.ZIndex * 0.01f // ZIndex�������ق�Z�l�͎�O(�������l)�ɂȂ�悤����
+            -cardData.ZIndex * 0.01f // ZIndexが高いほどZ値は手前(小さい値)になるよう調整
         );
 
-        // 3. �I����Ԃ̎��o�I�ȃt�B�[�h�o�b�N (��: �A�E�g���C���\���Ȃ�)
+        // 3. 選択状態の視覚的なフィードバック (例: アウトライン表示など)
         // if (cardData.isSelected) { ... }
     }
 
-    // CardDisplay.cs ���ɒǉ�
+    // CardDisplay.cs 内に追加
     /// <summary>
-    /// **���[�U�[����: �}�E�X�̍��{�^���������ꂽ�u�� / �^�b�`���J�n���ꂽ�u��**
-    /// <para>�h���b�O����̏������s���܂��B</para>
+    /// **ユーザー操作: マウスの左ボタンが押された瞬間 / タッチが開始された瞬間**
+    /// <para>ドラッグ操作の準備を行います。</para>
     /// <list type="bullet">
-    /// <item>�ꎞ�I��Z�����őO�ʁi-0.1f�j�Ɉړ������܂��B</item>
-    /// <item>�h���b�O�I�t�Z�b�g���v�Z���܂��B</item>
-    /// <item>�J�[�h�����I���̏ꍇ�A���̎��_�őI����ԁi���F�j�ɂ��܂��B</item>
-    /// <item>�S�Ă̑I���J�[�h��Z���̍őO�ʂɈړ������܂��B</item>
+    /// <item>一時的にZ軸を最前面（-0.1f）に移動させます。</item>
+    /// <item>ドラッグオフセットを計算します。</item>
+    /// <item>カードが未選択の場合、この時点で選択状態（黄色）にします。</item>
+    /// <item>全ての選択カードをZ軸の最前面に移動させます。</item>
     /// </list>
     /// </summary>
     public void OnPointerDown(PointerEventData eventData)
     {
-        // 1. Z-Index���őO�ʂɂ���i�C���ς݃��W�b�N�j
-        // ... (������Z���ݒ胍�W�b�N�͈ێ�: transform.position.z = -0.1f;)
+        // 1. Z-Indexを最前面にする（修正済みロジック）
+        // ... (既存のZ軸設定ロジックは維持: transform.position.z = -0.1f;)
         transform.position = new Vector3(
             transform.position.x,
             transform.position.y,
             -0.1f
         );
 
-        // 2. �h���b�O�I�t�Z�b�g���v�Z (�����͕ύX�Ȃ�)
+        // 2. ドラッグオフセットを計算 (ここは変更なし)
         dragOffset = transform.position - Camera.main.ScreenToWorldPoint(eventData.position);
         isDragging = false;
 
-        // ���ǉ�: �I����Ԃ̊m�F�ƃh���b�O����
-        initialDragPosition = transform.position; // �h���b�O�J�n���̈ʒu���L�^
+        // ★追加: 選択状態の確認とドラッグ準備
+        initialDragPosition = transform.position; // ドラッグ開始時の位置を記録
 
-        // Z-Index���őO�ʂ� (�I���J�[�h�S�Ă��ꎞ�I�ɍőO�ʂ�)
+        // Z-Indexを最前面に (選択カード全てを一時的に最前面に)
         foreach (var card in SelectedCards)
         {
             card.transform.position = new Vector3(
                 card.transform.position.x,
                 card.transform.position.y,
-                -0.1f // �S��-0.1f�ɂ��邱�ƂŁA�h���b�O�����d�ˏ��𓝈�
+                -0.1f // 全て-0.1fにすることで、ドラッグ中も重ね順を統一
             );
         }
     }
 
     /// <summary>
-    /// **���[�U�[����: �}�E�X�̍��{�^�����������܂܃J�[�\�����ړ����Ă����**
-    /// <para>�J�[�h���J�[�\���ɒǏ]�����܂��B�J�[�h���I����Ԃɂ���ꍇ�ASelectedCards���X�g���̑S�ẴJ�[�h�𓯎��Ɉړ������܂��i�܂Ƃ߂ăh���b�O�j�B</para>
+    /// **ユーザー操作: マウスの左ボタンを押したままカーソルが移動している間**
+    /// <para>カードをカーソルに追従させます。カードが選択状態にある場合、SelectedCardsリスト内の全てのカードを同時に移動させます（まとめてドラッグ）。</para>
     /// </summary>
     public void OnDrag(PointerEventData eventData)
     {
@@ -172,103 +172,103 @@ public class CardDisplay : MonoBehaviour,
             return;
         }
 
-        // OnDrag���Ă΂ꂽ��A�h���b�O���t���O�𗧂Ă�
+        // OnDragが呼ばれたら、ドラッグ中フラグを立てる
         if (!isDragging)
         {
             isDragging = true;
 
-            // ���V�K���W�b�N��:
-            // �h���b�O�J�n���ɂ��̃J�[�h���I������Ă��Ȃ��ꍇ�A
-            // ���̑S�ẴJ�[�h�̑I�����������A���̃J�[�h��P�ƂőI����Ԃɂ���B
+            // ★新規ロジック★:
+            // ドラッグ開始時にこのカードが選択されていない場合、
+            // 他の全てのカードの選択を解除し、このカードを単独で選択状態にする。
             if (!cardData.isSelected)
             {
-                // �܂����̑S�Ă̑I��������
+                // まず他の全ての選択を解除
                 var cardsToDeselect = new List<CardDisplay>(SelectedCards);
                 foreach (var card in cardsToDeselect)
                 {
                     if (card != this) card.ToggleSelection();
                 }
-                // �����Ă��̃J�[�h��I��
+                // そしてこのカードを選択
                 ToggleSelection();
             }
         }
 
-        // 1. ���݂̃J�[�h�̐V�����ʒu���v�Z
+        // 1. 現在のカードの新しい位置を計算
         Vector3 curScreenPoint = eventData.position;
         Vector3 newPosition = Camera.main.ScreenToWorldPoint(curScreenPoint) + dragOffset;
 
-        // 2. �ړ��� (����) ���v�Z
+        // 2. 移動量 (差分) を計算
         Vector3 moveDelta = newPosition - transform.position;
 
-        // 3. �I������Ă���S�ẴJ�[�h���ړ�
+        // 3. 選択されている全てのカードを移動
         foreach (var card in SelectedCards)
         {
-            // ���݃h���b�O���Ă���J�[�h�͌v�Z���ꂽnewPosition�ɁA���͈ړ����������Z
+            // 現在ドラッグしているカードは計算されたnewPositionに、他は移動差分を加算
             if (card == this)
             {
                 card.transform.position = newPosition;
             }
             else
             {
-                // ���̃J�[�h�́A���̃J�[�h�Ɠ����ړ������ňړ�������
+                // 他のカードは、このカードと同じ移動差分で移動させる
                 card.transform.position += moveDelta;
             }
         }
-        // Z���͕ύX���Ȃ��悤�ɏ㏑������K�v�́AOnPointerDown�œ��ꂵ�����ߕs�v�B
+        // Z軸は変更しないように上書きする必要は、OnPointerDownで統一したため不要。
     }
 
-    // CardDisplay.cs �� OnEndDrag ���C��
+    // CardDisplay.cs の OnEndDrag を修正
 
     /// <summary>
-    /// **���[�U�[����: �}�E�X�̍��{�^���������ꂽ�u�ԁi�h���b�O�����j**
-    /// <para>�h���b�O����̏I�����������܂��B</para>
+    /// **ユーザー操作: マウスの左ボタンが離された瞬間（ドラッグ操作後）**
+    /// <para>ドラッグ操作の終了を処理します。</para>
     /// <list type="bullet">
-    /// <item>isDragging�t���O�����Z�b�g���܂��B</item>
-    /// <item>�����̃��\�b�h�ł́A�I����Ԃ̉����͍s���܂���i�V���O���N���b�N�ŉ������邽�߁j�B</item>
+    /// <item>isDraggingフラグをリセットします。</item>
+    /// <item>※このメソッドでは、選択状態の解除は行いません（シングルクリックで解除するため）。</item>
     /// </list>
     /// </summary>
     public void OnEndDrag(PointerEventData eventData)
     {
         isDragging = false;
 
-        // TODO: �����Ńh���b�v��̏ꏊ�iDeck Zone, Hand Zone�Ȃǁj�𔻒肵�A
-        // GameManager�����SelectedCards�S�Ă�CardData��LocationId��Position���X�V���鏈�����K�v�B
+        // TODO: ここでドロップ先の場所（Deck Zone, Hand Zoneなど）を判定し、
+        // GameManagerを介してSelectedCards全てのCardDataのLocationIdとPositionを更新する処理が必要。
 
-        // ���ǉ�: �h���b�O�I����A�S�J�[�h�̑I����Ԃ����� (�K�{�ł͂���܂��񂪁A��ʓI��UX)
-        // List���R�s�[���Ă���������Ȃ��ƁA���[�v���Ƀ��X�g���ύX����G���[�ɂȂ�
+        // ★追加: ドラッグ終了後、全カードの選択状態を解除 (必須ではありませんが、一般的なUX)
+        // Listをコピーしてから解除しないと、ループ中にリストが変更されエラーになる
         //var cardsToDeselect = new List<CardDisplay>(SelectedCards);
         //foreach (var card in cardsToDeselect)
         //{
-        //    card.ToggleSelection(); // isSelected=false �ɂȂ�A���X�g������폜�����
+        //    card.ToggleSelection(); // isSelected=false になり、リストからも削除される
         //}
     }
 
-    // CardDisplay.cs ���ɒǉ�
+    // CardDisplay.cs 内に追加
     /// <summary>
-    /// **���[�U�[����: �}�E�X�̍��{�^����������Ă����ɗ����ꂽ�u�ԁi�h���b�O�Ɣ��肳��Ȃ��ꍇ�j**
-    /// <para>�N���b�N�񐔂Ɋ�Â��A�I���܂��͗��Ԃ���������s���܂��B</para>
+    /// **ユーザー操作: マウスの左ボタンが押されてすぐに離された瞬間（ドラッグと判定されない場合）**
+    /// <para>クリック回数に基づき、選択または裏返し操作を実行します。</para>
     /// <list type="bullet">
-    /// <item>�h���b�O����ł������ꍇ�́A���̃C�x���g�𖳎����܂��B</item>
-    /// <item>�N���b�N�� == 2 (�_�u���N���b�N): �I����Ԃ�ύX�����A�J�[�h�̗��\�𔽓]���܂��B�i�v���C�j</item>
-    /// <item>�N���b�N�� == 1 (�V���O���N���b�N): �J�[�h�̑I����Ԃ��g�O���i�I��/��I���j���܂��B�i�v���@�A�j</item>
+    /// <item>ドラッグ操作であった場合は、このイベントを無視します。</item>
+    /// <item>クリック回数 == 2 (ダブルクリック): 選択状態を変更せず、カードの裏表を反転します。（要件④）</item>
+    /// <item>クリック回数 == 1 (シングルクリック): カードの選択状態をトグル（選択/非選択）します。（要件①②）</item>
     /// </list>
     /// </summary>
     public void OnPointerClick(PointerEventData eventData)
     {
-        // �h���b�O���삾�����ꍇ�́A�N���b�N�C�x���g�𖳎�����
+        // ドラッグ操作だった場合は、クリックイベントを無視する
         if (isDragging)
         {
             return;
         }
 
-        // ���N���b�N (Primary action) �̂ݏ���
+        // 左クリック (Primary action) のみ処理
         if (eventData.button == PointerEventData.InputButton.Left)
         {
-            // �@ �_�u���N���b�N�ŗ��Ԃ����g�O��
+            // ① ダブルクリックで裏返しをトグル
             if (eventData.clickCount == 2)
             {
                 Debug.Log($"eventData.clickCount == 2");
-                // CardData�̏�Ԃ��g�O�����郍�W�b�N
+                // CardDataの状態をトグルするロジック
                 if (cardData.State == CardData.CardState.FACE_UP)
                 {
                     cardData.State = CardData.CardState.FACE_DOWN_ALL;
@@ -281,11 +281,11 @@ public class CardDisplay : MonoBehaviour,
                 ToggleSelection();
                 UpdateVisuals();
 
-                // �������I�� (�I����Ԃ̕ύX�͍s��Ȃ�)
+                // 処理を終了 (選択状態の変更は行わない)
                 return;
             }
 
-            // �A �V���O���N���b�N�őI����Ԃ��g�O��
+            // ② シングルクリックで選択状態をトグル
             if (eventData.clickCount == 1)
             {
                 Debug.Log($"eventData.clickCount == 1");
@@ -293,7 +293,7 @@ public class CardDisplay : MonoBehaviour,
             }
         }
 
-        // �B �E�N���b�N�i�I�����W�b�N�̑�ցj: ����̓V���O���N���b�N�Ŏ��������̂ŕs�v�����A�c���ꍇ�͈ێ�
+        // ③ 右クリック（選択ロジックの代替）: 今回はシングルクリックで実装したので不要だが、残す場合は維持
         else if (eventData.button == PointerEventData.InputButton.Right)
         {
             Debug.Log($"Card {cardData.Id} was right-clicked/long-pressed.");
