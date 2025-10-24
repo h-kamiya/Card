@@ -1,3 +1,20 @@
+# Unity Metadata/Assets
+*.meta text eol=lf
+*.unity text eol=lf
+*.prefab text eol=lf
+*.mat text eol=lf
+*.asset text eol=lf
+*.asmdef text eol=lf
+*.shader text eol=lf
+*.txt text
+*.md text
+
+# スクリプトはUTF-8で扱う
+*.cs text diff=csharp merge=union
+*.js text
+*.boo text
+
+# Git LFS
 *.png filter=lfs diff=lfs merge=lfs -text
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.unity filter=lfs diff=lfs merge=lfs -text
