@@ -2,19 +2,26 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// シーン内のすべてのViewとPresenterを初期化し、依存性を注入（紐付け）するコントローラー。
+/// MVPパターンにおけるController/Initializer層。
+/// シーン開始時にViewとPresenterを生成し、お互いを紐付け（依存性の注入）する役割を担います。
+/// このクラスはUnityのライフサイクル（MonoBehaviour）に依存しますが、ロジックは含みません。
 /// </summary>
 public class SceneInitializer : MonoBehaviour
 {
     // Presenterのインスタンスを保持
     private CardInteractionPresenter _interactionPresenter;
 
-    // 現在のコードの動作確認のため、Start()で実行
+    /// <summary>
+    /// Unityの起動時にMVPの初期化を実行します。
+    /// </summary>
     void Start()
     {
         InitializeMVP();
     }
 
+    /// <summary>
+    /// シーン内のViewを検出し、Presenterを生成して接続するメイン処理。
+    /// </summary>
     private void InitializeMVP()
     {
         // 1. すべての CardDisplay (View) をシーンから取得
