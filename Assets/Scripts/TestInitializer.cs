@@ -1,3 +1,5 @@
+using Game.Models;
+using Game.Views;
 using UnityEngine;
 
 public class TestInitializer : MonoBehaviour

@@ -1,0 +1,17 @@
+{
+    "name": "Game.Presenters",
+    "rootNamespace": "",
+    "references": [
+        "GUID:af2e8253b0fd6c344845e0f9a3589dc0",
+        "GUID:2ececc2f51061cc4aabbebbf3343a700"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
