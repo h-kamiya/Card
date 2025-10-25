@@ -31,10 +31,13 @@ public class CardInteractionPresenter
         // Viewからの入力イベントを購読
         foreach (var view in _views)
         {
-            // ★実装: ViewからのクリックイベントをPresenterのハンドラに接続
             view.OnCardSingleClick += HandleSingleClick;
             view.OnCardDoubleClick += HandleDoubleClick;
-            // view.OnCardDragStart など、他のイベントの購読もここで行う
+
+            // ★新規購読★: ドラッグイベント
+            view.OnCardDragStart += HandleDragStart;
+            view.OnCardDragging += HandleDragging;
+            view.OnCardEndDrag += HandleEndDrag;
         }
     }
 
@@ -71,8 +74,9 @@ public class CardInteractionPresenter
     private void HandleDoubleClick(CardDisplay clickedView)
     {
         // 1. 必ず先にHandleSingleClickが呼ばれ、意図した選択状態が反転しているため、再度反転させる
-        bool isSelected = !clickedView.CardData.isSelected;
-        clickedView.CardData.isSelected = isSelected;
+        //bool isSelected = !clickedView.CardData.isSelected;
+        //clickedView.CardData.isSelected = isSelected;
+        HandleSingleClick(clickedView);
 
         // 2. Model (CardData) の状態を変更 (裏返しロジック)
         if (clickedView.CardData.State == CardData.CardState.FACE_UP)
@@ -88,5 +92,91 @@ public class CardInteractionPresenter
         clickedView.UpdateVisuals();
 
         Debug.Log($"Presenter: Card {clickedView.CardData.Id} Flipped. New State: {clickedView.CardData.State}");
+    }
+
+    /// <summary>
+    /// Viewからのドラッグ開始イベントを処理します。
+    /// ドラッグ開始カードが未選択の場合は選択状態にし、全選択カードのZ値を最前面に設定します。
+    /// </summary>
+    private void HandleDragStart(CardDisplay startingView, Vector3 initialWorldPosition)
+    {
+        // 1. ドラッグ開始カードが未選択なら選択状態にする（旧OnPointerDownのロジックをPresenterで再現）
+        if (!startingView.CardData.isSelected)
+        {
+            // シングルクリックロジックを再利用し、選択状態にする
+            HandleSingleClick(startingView);
+        }
+
+        // 2. 選択カード全てを最前面に設定する（旧OnPointerDownのロジックをPresenterで再現）
+        // Presenterが管理する選択中CardDataに対応するViewを取得
+        var selectedViews = _views.Where(v => _selectedCardData.Contains(v.CardData));
+
+        foreach (var view in selectedViews)
+        {
+            // Z値を一時的に最前面Z値に設定するようViewに命令
+            // Z値の変更はViewの責務（SetPosition）を通じて実行
+            view.SetPosition(new Vector3(
+                view.CardData.Position.x, // 現在のX/Y位置を維持
+                view.CardData.Position.y,
+                -0.1f // 最前面Z値
+            ));
+        }
+
+        Debug.Log($"Presenter: Drag Started. Selected count: {_selectedCardData.Count}");
+    }
+
+    /// <summary>
+    /// Viewからのドラッグ中イベントを処理し、選択グループ全体を移動させます。
+    /// </summary>
+    /// <param name="draggedView">現在ドラッグされているCardDisplay (View)。</param>
+    /// <param name="moveDelta">Viewが移動した量（X, Yの差分）。</param>
+    private void HandleDragging(CardDisplay draggedView, Vector3 moveDelta)
+    {
+        // 1. Viewが自分自身を移動済みなので、Modelのデータも更新する
+        // Viewは自分自身を移動済みのため、Presenterはデータ層を同期させる
+        draggedView.CardData.Position = draggedView.transform.position;
+
+        // 2. 選択カード全てを移動させる（自分自身を除く）
+        var selectedViews = _views.Where(v => _selectedCardData.Contains(v.CardData));
+
+        foreach (var view in selectedViews)
+        {
+            // ドラッグを開始したカードはすでに移動済みなのでスキップ
+            if (view == draggedView) continue;
+
+            // 他のカードは移動差分を加算し、Viewに位置更新を命令
+            Vector3 newPosition = view.CardData.Position + moveDelta;
+
+            // Modelの位置を更新 (データ永続化のため)
+            view.CardData.Position = newPosition;
+
+            // Viewの描画位置を更新
+            view.SetPosition(newPosition);
+        }
+    }
+
+    /// <summary>
+    /// Viewからのドラッグ終了イベントを処理します。
+    /// 選択状態を解除し、Viewに再描画を命令します。
+    /// </summary>
+    private void HandleEndDrag(CardDisplay droppedView)
+    {
+        // 1. ドラッグ終了後、全カードの選択状態を解除（旧OnEndDragのロジック）
+        var cardsToDeselect = _selectedCardData.ToList(); // 処理中にリストが変更されるのを防ぐ
+
+        foreach (var data in cardsToDeselect)
+        {
+            // Modelの状態を更新
+            data.isSelected = false;
+
+            // Presenterのリストから削除
+            _selectedCardData.Remove(data);
+
+            // 対応するViewを取得し、描画を更新（選択解除とZ-Index復元）
+            var view = _views.First(v => v.CardData == data);
+            view.UpdateVisuals();
+        }
+
+        Debug.Log($"Presenter: Drag Ended. All {_selectedCardData.Count} cards deselected.");
     }
 }

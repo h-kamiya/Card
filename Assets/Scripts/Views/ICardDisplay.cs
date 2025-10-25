@@ -32,6 +32,11 @@ public interface ICardDisplay
     /// </summary>
     event Action<CardDisplay, Vector3> OnCardDragging; // Vector3: 移動差分など
 
+    /// <summary>
+    /// カードがドラッグ終了した際に発火します。
+    /// </summary>
+    event Action<CardDisplay> OnCardEndDrag;
+
     // PresenterからViewに「描画更新」を命令するためのメソッド
     /// <summary>
     /// Presenterからの指示に基づき、CardDataの状態を反映して視覚要素を更新します。

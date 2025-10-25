@@ -53,6 +53,7 @@ public class CardDisplay : MonoBehaviour,
     public event Action<CardDisplay> OnCardDoubleClick;
     public event Action<CardDisplay, Vector3> OnCardDragStart;
     public event Action<CardDisplay, Vector3> OnCardDragging;
+    public event Action<CardDisplay> OnCardEndDrag; // ★追加: ドラッグ終了イベント
 
     // ICardDisplayインターフェースで要求されるプロパティの定義
     // Presenterがカードデータを参照するために使用
@@ -198,11 +199,8 @@ public class CardDisplay : MonoBehaviour,
     {
         isDragging = false;
 
-        // ★削除★: ドラッグ終了後、全カードの選択状態を解除するロジック
-
-        // TODO: Presenterにドロップ終了を通知し、ロジックを実行させる（配置場所の判定、データ更新など）
-
-        // 現時点では通知イベントを定義していないため、一旦空のまま維持
+        // ★修正★: Presenterにドロップ終了を通知
+        OnCardEndDrag?.Invoke(this);
     }
 
     // CardDisplay.cs 内に追加
