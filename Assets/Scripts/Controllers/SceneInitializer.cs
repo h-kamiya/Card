@@ -37,11 +37,10 @@ public class SceneInitializer : MonoBehaviour
         }
 
         // 3. Presenterを初期化し、Viewのリストを渡す
-        // _interactionPresenter = new CardInteractionPresenter(views);
+        // ★修正ポイント★: Presenterの初期化を有効化
+        _interactionPresenter = new CardInteractionPresenter(views);
 
-        // ★重要★: 現状はロジック修正を行わないため、初期化処理をコメントアウトします。
-        // 今後のステップでこのコメントアウトを解除し、ViewとPresenterを接続します。
+        Debug.Log($"MVP Initializer: Found {displays.Length} CardDisplay(s). Connected to Presenter.");
 
-        Debug.Log($"MVP Initializer: Found {displays.Length} CardDisplay(s). Ready for connection.");
     }
 }

@@ -83,33 +83,6 @@ public class CardDisplay : MonoBehaviour,
         UpdateVisuals();
     }
 
-    // 選択状態をトグルする関数
-    /// <summary>
-    /// カードの選択状態 (isSelected) をトグル（反転）します。
-    /// 選択状態が変更された際、静的リスト SelectedCards の更新と視覚的な反映（ハイライト/解除）を行います。
-    /// </summary>
-    public void ToggleSelection()
-    {
-        cardData.isSelected = !cardData.isSelected;
-
-        if (cardData.isSelected)
-        {
-            // 選択リストに追加し、視覚的なフィードバックを有効化
-            if (!SelectedCards.Contains(this))
-            {
-                SelectedCards.Add(this);
-            }
-        }
-        else
-        {
-            // 選択リストから削除し、視覚的なフィードバックを無効化
-            SelectedCards.Remove(this);
-        }
-        UpdateVisuals(); // 視覚的なフィードバック（色）を更新
-
-        // TODO: ここでGameManagerを介して永続化処理を呼び出す
-    }
-
     // モデルの状態に基づいて表示を更新する関数
     /// <summary>
     /// CardDataの状態に基づき、カードの視覚的な表示を更新します。
@@ -172,18 +145,13 @@ public class CardDisplay : MonoBehaviour,
         dragOffset = transform.position - Camera.main.ScreenToWorldPoint(eventData.position);
         isDragging = false;
 
-        // ★追加: 選択状態の確認とドラッグ準備
-        initialDragPosition = transform.position; // ドラッグ開始時の位置を記録
+        // ★削除★: 選択されていないカードをドラッグ開始した場合、まず選択するロジック
+        // ★削除★: 選択カード全てを一時的に最前面にするロジック
 
-        // Z-Indexを最前面に (選択カード全てを一時的に最前面に)
-        foreach (var card in SelectedCards)
-        {
-            card.transform.position = new Vector3(
-                card.transform.position.x,
-                card.transform.position.y,
-                -0.1f // 全て-0.1fにすることで、ドラッグ中も重ね順を統一
-            );
-        }
+        // ★追加★: Presenterにドラッグ開始を通知
+        OnCardDragStart?.Invoke(this, transform.position); // このカードでドラッグが開始されたことを通知
+
+        // NOTE: initialDragPositionのフィールドは不要になったため削除して構いません。
     }
 
     /// <summary>
@@ -197,49 +165,23 @@ public class CardDisplay : MonoBehaviour,
             return;
         }
 
-        // OnDragが呼ばれたら、ドラッグ中フラグを立てる
-        if (!isDragging)
-        {
-            isDragging = true;
+        isDragging = true;
 
-            // ★新規ロジック★:
-            // ドラッグ開始時にこのカードが選択されていない場合、
-            // 他の全てのカードの選択を解除し、このカードを単独で選択状態にする。
-            if (!cardData.isSelected)
-            {
-                // まず他の全ての選択を解除
-                var cardsToDeselect = new List<CardDisplay>(SelectedCards);
-                foreach (var card in cardsToDeselect)
-                {
-                    if (card != this) card.ToggleSelection();
-                }
-                // そしてこのカードを選択
-                ToggleSelection();
-            }
-        }
-
-        // 1. 現在のカードの新しい位置を計算
+        // 1. 現在のカードの新しい位置を計算 (Viewの責務)
         Vector3 curScreenPoint = eventData.position;
         Vector3 newPosition = Camera.main.ScreenToWorldPoint(curScreenPoint) + dragOffset;
-
+        
         // 2. 移動量 (差分) を計算
         Vector3 moveDelta = newPosition - transform.position;
 
-        // 3. 選択されている全てのカードを移動
-        foreach (var card in SelectedCards)
-        {
-            // 現在ドラッグしているカードは計算されたnewPositionに、他は移動差分を加算
-            if (card == this)
-            {
-                card.transform.position = newPosition;
-            }
-            else
-            {
-                // 他のカードは、このカードと同じ移動差分で移動させる
-                card.transform.position += moveDelta;
-            }
-        }
-        // Z軸は変更しないように上書きする必要は、OnPointerDownで統一したため不要。
+        // 3. 自分の位置のみを更新 (暫定。Presenterが全体を制御するまでは自身で移動)
+        transform.position = newPosition; 
+
+        // ★削除★: 選択されている全てのカードを移動するロジック
+        
+        // ★追加★: Presenterに移動情報を通知
+        // Presenterはこれをトリガーに、他の選択カードを移動させる
+        OnCardDragging?.Invoke(this, moveDelta);
     }
 
     // CardDisplay.cs の OnEndDrag を修正
@@ -256,16 +198,11 @@ public class CardDisplay : MonoBehaviour,
     {
         isDragging = false;
 
-        // TODO: ここでドロップ先の場所（Deck Zone, Hand Zoneなど）を判定し、
-        // GameManagerを介してSelectedCards全てのCardDataのLocationIdとPositionを更新する処理が必要。
+        // ★削除★: ドラッグ終了後、全カードの選択状態を解除するロジック
 
-        // ★追加: ドラッグ終了後、全カードの選択状態を解除 (必須ではありませんが、一般的なUX)
-        // Listをコピーしてから解除しないと、ループ中にリストが変更されエラーになる
-        //var cardsToDeselect = new List<CardDisplay>(SelectedCards);
-        //foreach (var card in cardsToDeselect)
-        //{
-        //    card.ToggleSelection(); // isSelected=false になり、リストからも削除される
-        //}
+        // TODO: Presenterにドロップ終了を通知し、ロジックを実行させる（配置場所の判定、データ更新など）
+
+        // 現時点では通知イベントを定義していないため、一旦空のまま維持
     }
 
     // CardDisplay.cs 内に追加
@@ -293,18 +230,8 @@ public class CardDisplay : MonoBehaviour,
             if (eventData.clickCount == 2)
             {
                 Debug.Log($"eventData.clickCount == 2");
-                // CardDataの状態をトグルするロジック
-                if (cardData.State == CardData.CardState.FACE_UP)
-                {
-                    cardData.State = CardData.CardState.FACE_DOWN_ALL;
-                }
-                else
-                {
-                    cardData.State = CardData.CardState.FACE_UP;
-                }
-
-                ToggleSelection();
-                UpdateVisuals();
+                // ★修正★: ロジックを削除し、Presenterにイベントを通知
+                OnCardDoubleClick?.Invoke(this); // イベント発火
 
                 // 処理を終了 (選択状態の変更は行わない)
                 return;
@@ -314,7 +241,8 @@ public class CardDisplay : MonoBehaviour,
             if (eventData.clickCount == 1)
             {
                 Debug.Log($"eventData.clickCount == 1");
-                ToggleSelection();
+                // ★修正★: ロジックを削除し、Presenterにイベントを通知
+                OnCardSingleClick?.Invoke(this); // イベント発火
             }
         }
 

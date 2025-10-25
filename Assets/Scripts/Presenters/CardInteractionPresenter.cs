@@ -31,8 +31,10 @@ public class CardInteractionPresenter
         // Viewからの入力イベントを購読
         foreach (var view in _views)
         {
+            // ★実装: ViewからのクリックイベントをPresenterのハンドラに接続
             view.OnCardSingleClick += HandleSingleClick;
-            // 他のイベントの購読もここで行う
+            view.OnCardDoubleClick += HandleDoubleClick;
+            // view.OnCardDragStart など、他のイベントの購読もここで行う
         }
     }
 
@@ -42,12 +44,49 @@ public class CardInteractionPresenter
     /// <param name="clickedView">クリックされたCardDisplay (View)。</param>
     private void HandleSingleClick(CardDisplay clickedView)
     {
-        // Viewから入力があったことを受け取り、ロジックを実行する（トグル処理など）
-        // clickedView.CardData.isSelected = !clickedView.CardData.isSelected;
-        // clickedView.UpdateVisuals();
+        // 1. Model (CardData) の状態を変更
+        bool isSelected = !clickedView.CardData.isSelected;
+        clickedView.CardData.isSelected = isSelected;
 
-        Debug.Log($"Presenter: Card {clickedView.CardData.Id} Single Clicked.");
+        // 2. 選択リストの状態を更新 (Viewの静的リストに代わるもの)
+        if (isSelected)
+        {
+            _selectedCardData.Add(clickedView.CardData);
+        }
+        else
+        {
+            _selectedCardData.Remove(clickedView.CardData);
+        }
+
+        // 3. Viewに描画更新を命令 (Viewの持つ責務をPresenterが実行指示)
+        clickedView.UpdateVisuals();
+
+        Debug.Log($"Presenter: Card {clickedView.CardData.Id} Toggled Selection. Count: {_selectedCardData.Count}");
     }
 
-    // 他のイベントハンドラ（ダブルクリック、ドラッグなど）もここに追加する
+    /// <summary>
+    /// Viewからのダブルクリックイベントを処理し、カードの裏返しロジックを実行します。
+    /// </summary>
+    /// <param name="clickedView">ダブルクリックされたCardDisplay (View)。</param>
+    private void HandleDoubleClick(CardDisplay clickedView)
+    {
+        // 1. 必ず先にHandleSingleClickが呼ばれ、意図した選択状態が反転しているため、再度反転させる
+        bool isSelected = !clickedView.CardData.isSelected;
+        clickedView.CardData.isSelected = isSelected;
+
+        // 2. Model (CardData) の状態を変更 (裏返しロジック)
+        if (clickedView.CardData.State == CardData.CardState.FACE_UP)
+        {
+            clickedView.CardData.State = CardData.CardState.FACE_DOWN_ALL;
+        }
+        else
+        {
+            clickedView.CardData.State = CardData.CardState.FACE_UP;
+        }
+
+        // 3. Viewに描画更新を命令 (裏返ったことを反映)
+        clickedView.UpdateVisuals();
+
+        Debug.Log($"Presenter: Card {clickedView.CardData.Id} Flipped. New State: {clickedView.CardData.State}");
+    }
 }
