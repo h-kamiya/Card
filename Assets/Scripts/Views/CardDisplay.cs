@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems; // ★追加：イベントシステムを使用
@@ -14,7 +15,8 @@ public class CardDisplay : MonoBehaviour,
     IPointerDownHandler,
     IDragHandler,
     IPointerClickHandler,
-    IEndDragHandler
+    IEndDragHandler,
+    ICardDisplay
 {
     [Header("アセットの参照")]
     // 2Dの場合、SpriteRendererで画像を表示
@@ -42,6 +44,29 @@ public class CardDisplay : MonoBehaviour,
     private Vector3 dragOffset; // ドラッグ開始時のマウス/オブジェクトの相対位置
     private bool isDragging = false; // ドラッグ中かどうかのフラグ
 
+
+    // CardDisplay.cs 内に追加
+
+    // ICardDisplayインターフェースで要求されるイベントの定義
+    // Presenterはこのイベントを購読する
+    public event Action<CardDisplay> OnCardSingleClick;
+    public event Action<CardDisplay> OnCardDoubleClick;
+    public event Action<CardDisplay, Vector3> OnCardDragStart;
+    public event Action<CardDisplay, Vector3> OnCardDragging;
+
+    // ICardDisplayインターフェースで要求されるプロパティの定義
+    // Presenterがカードデータを参照するために使用
+    public CardData CardData => cardData; // 既存の cardData フィールドを参照
+
+    // ICardDisplayインターフェースで要求されるメソッドの実装
+    // Presenterから位置を設定されるためのメソッド
+    public void SetPosition(Vector3 position)
+    {
+        // Viewの責務である位置の設定
+        transform.position = position;
+    }
+
+    // NOTE: UpdateVisuals()は既に存在するため、ここでは再実装不要。
     // --- 初期化と描画 ---
 
     /// <summary>
