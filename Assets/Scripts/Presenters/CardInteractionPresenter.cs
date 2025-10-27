@@ -16,12 +16,21 @@ namespace Game.Presenters
         // ★重要フィールド★: Viewのリスト
         private readonly List<ICardDisplay> _views;
 
+        // ★修正点 1: 単一のCardStackから、IDをキーとするDictionaryに変更★
+        /// <summary>
+        /// Presenterが管理する全てのCardStack（山札、捨て札など）のコレクション。
+        /// </summary>
+        private readonly Dictionary<string, CardStack> _cardStacks;
+
         // Presenterが管理する選択中カードのリスト (以前の静的リストに代わるもの)
         /// <summary>
         /// Presenterがゲームロジックに基づいて管理する、現在選択中のCardDataのリスト。
         /// このリストはViewの静的リストに代わるものであり、テスタブルなロジックを提供します。
         /// </summary>
         private readonly List<CardData> _selectedCardData = new List<CardData>();
+
+        // 動的に生成されるスタック（プレイヤーが場に作る束など）のIDを管理するためのカウンター
+        private int _dynamicStackCounter = 0;
 
         /// <summary>
         /// CardInteractionPresenterの新しいインスタンスを初期化します。
@@ -43,6 +52,44 @@ namespace Game.Presenters
                 view.OnCardDragging += HandleDragging;
                 view.OnCardEndDrag += HandleEndDrag;
             }
+        }
+
+        // ★修正点 2: 複数のCardStackを受け取るコンストラクタを新規追加（または既存のコンストラクタを変更）★
+        /// <summary>
+        /// Presenterの新しいインスタンスを初期化し、Viewと全てのCardStackを接続します。
+        /// </summary>
+        /// <param name="views">シーン内に存在する全てのICardDisplay実装（View）のリスト。</param>
+        /// <param name="initialStacks">Presenterが管理すべき全てのCardStackのリスト。</param>
+        public CardInteractionPresenter(List<ICardDisplay> views, List<CardStack> initialStacks)
+        {
+            _views = views;
+
+            // Dictionaryを初期化し、リストからデータを登録
+            _cardStacks = initialStacks.ToDictionary(stack => stack.Id, stack => stack);
+
+            // Viewからの入力イベントを購読
+            foreach (var view in _views)
+            {
+                // ★修正箇所：クリック、ダブルクリック、ドラッグイベントの購読を追加
+                view.OnCardSingleClick += HandleSingleClick;
+                view.OnCardDoubleClick += HandleDoubleClick;
+                view.OnCardDragStart += HandleDragStart;
+                view.OnCardDragging += HandleDragging;
+                view.OnCardEndDrag += HandleEndDrag;
+            }
+
+            Debug.Log($"Presenter initialized. Managing {_cardStacks.Count} card stacks.");
+        }
+
+        // ★新規追加★: 特定のCardStackを取得するためのヘルパー（privateのまま維持）
+        private CardStack GetStack(string id)
+        {
+            if (_cardStacks.TryGetValue(id, out CardStack stack))
+            {
+                return stack;
+            }
+            Debug.LogWarning($"CardStack with ID '{id}' not found.");
+            return null;
         }
 
         /// <summary>
@@ -192,7 +239,57 @@ namespace Game.Presenters
             Debug.Log($"Presenter: Drag Ended. All {_selectedCardData.Count} cards deselected.");
         }
 
-        // CardInteractionLogic.cs の末尾に追加
+        /// <summary>
+        /// 指定されたスタックIDのカードをシャッフルします。
+        /// </summary>
+        /// <param name="stackId">シャッフル対象のCardStackのID。</param>
+        public void HandleShuffleStack(string stackId)
+        {
+            CardStack stack = GetStack(stackId);
+
+            // 【普遍的なロジック】: 存在しないスタックや、シャッフルの意味がない1枚以下のスタックは操作しない。
+            // ※スタックは2枚以上で存在することになっているが、安全のためチェック
+            if (stack == null || stack.Cards.Count <= 1)
+            {
+                Debug.LogWarning($"Shuffle failed: Stack '{stackId}' is null or has {stack?.Cards.Count ?? 0} cards.");
+                return;
+            }
+
+            // ToDo: シャッフルロジックを実装
+            Debug.Log($"Shuffling stack: {stack.Id} with {stack.Cards.Count} cards.");
+
+            // ViewのZIndexやPositionの更新も必要（最上部のカードのみ見え方が変わるなど）
+        }
+
+        /// <summary>
+        /// 指定されたスタックIDの最上部カードをPopし、場に出すドロー操作を実行します。
+        /// </summary>
+        /// <param name="sourceStackId">Popする元のCardStackのID。</param>
+        public void HandleDrawFromStack(string sourceStackId)
+        {
+            CardStack sourceStack = GetStack(sourceStackId);
+
+            if (sourceStack == null || sourceStack.Cards.Count == 0)
+            {
+                Debug.LogWarning($"Draw failed: Stack '{sourceStackId}' is empty or not found.");
+                return;
+            }
+
+            // 1. Model更新：スタックから最上部カードを取り出す
+            CardData drawnCard = sourceStack.Pop();
+
+            // 2. ToDo: Viewの移動と状態更新（裏返し、新しいPosition/ZIndexの設定）
+
+            // 3. ToDo: スタックの解体処理
+            // Popの結果、カード枚数が1枚以下になった場合、PresenterはModelからこのスタックをDictionaryから削除する
+            if (sourceStack.Cards.Count < 2)
+            {
+                Debug.Log($"CardStack '{sourceStackId}' dissolved because count dropped to {sourceStack.Cards.Count}.");
+                // _cardStacks.Remove(sourceStackId); // 実際に削除
+
+                // 残ったカード（もし1枚あれば）は、単なる「場の一枚のカード」として扱われる
+            }
+        }
 
         // ★★★ ユニットテスト用アクセスポイント ★★★
 #if UNITY_EDITOR

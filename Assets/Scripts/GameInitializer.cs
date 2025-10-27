@@ -1,33 +1,34 @@
-// TestInitializer.cs (または GameInitializer.cs)
-
 using System.Collections.Generic;
 using Game.Models;
 using Game.Views;
-using Game.Presenters; // ★追加: Presenterの参照
+using Game.Presenters;
 using UnityEngine;
+using System.Linq;
 
-// クラス名を TestInitializer から GameInitializer に変更することを推奨します。
 public class GameInitializer : MonoBehaviour
 {
-    public CardDisplay cardPrefab; // Card PrefabをInspectorから割り当てる
-    [Header("カード配置設定")]
-    public Vector3 startPosition = new Vector3(-2f, 0, 0); // 最初のカードの開始位置 (x=-2, y=0)
-    public float cardSpacing = 1.2f; // カード間のX軸間隔
-    public int numberOfCards = 5; // 生成するカードの枚数
+    public CardDisplay cardPrefab;
+
+    [Header("初期スタック設定")]
+    public Vector3 initialStackPosition = new Vector3(0, 0, 0); // 最初のスタック（山札）を置く位置
+    public int totalCards = 6; // 初期スタックに含めるカードの枚数 (最低2枚以上を想定)
 
     private CardInteractionPresenter _presenter;
 
     void Start()
     {
-        // 1. カードデータとViewを生成・初期化
-        List<ICardDisplay> views = InitializeCards();
+        // 1. 全ての初期CardStackを生成
+        List<CardStack> initialStacks = InitializeStacks();
 
-        // 2. Presenterを初期化し、Viewリストを渡してMVP接続を完了
-        // (PresenterはViewリストを購読し、イベント接続を確立します)
+        // 2. Viewリストの準備（全てのCardDataに対応するViewを作成）
+        List<ICardDisplay> views = CreateViewsForStacks(initialStacks);
+
+        // 3. Presenterを初期化し、Viewリストと全てのStackを渡してMVP接続を完了
         if (views.Count > 0)
         {
-            _presenter = new CardInteractionPresenter(views);
-            Debug.Log($"Game Initialized: {views.Count} cards generated and Presenter connected.");
+            _presenter = new CardInteractionPresenter(views, initialStacks);
+
+            Debug.Log($"Game Initialized: Total {views.Count} cards created. Managing {initialStacks.Count} stacks. Presenter connected.");
         }
         else
         {
@@ -36,43 +37,61 @@ public class GameInitializer : MonoBehaviour
     }
 
     /// <summary>
-    /// 複数のCardDataとViewを生成し、リストを返します。
+    /// 初期に必要なCardStack（山札）を生成し、その中に全てのCardDataを格納します。
+    /// 捨て札など0枚のスタックはここでは生成しません。
     /// </summary>
-    private List<ICardDisplay> InitializeCards()
+    private List<CardStack> InitializeStacks()
+    {
+        List<CardStack> allStacks = new List<CardStack>();
+
+        if (totalCards >= 2)
+        {
+            // 1. カードデータの生成
+            List<string> cardIds = Enumerable.Range(1, totalCards).Select(i => $"Card_{i}").ToList();
+            List<CardData> initialCardData = new List<CardData>();
+
+            for (int i = 0; i < totalCards; i++)
+            {
+                CardData newCardData = new CardData
+                {
+                    Id = cardIds[i],
+                    State = CardData.CardState.FACE_DOWN_ALL,
+                    ZIndex = (int)(i + 1),
+                    Position = initialStackPosition // 全てのカードは最初のスタックの位置にある
+                };
+                initialCardData.Add(newCardData);
+            }
+
+            // 2. スタックの作成 (ID="Deck"は便宜上の初期値)
+            CardStack initialStack = new CardStack("Deck", initialCardData);
+            allStacks.Add(initialStack);
+        }
+
+        return allStacks;
+    }
+
+    /// <summary>
+    /// 全てのCardStack内のCardDataに対応するViewを生成します。
+    /// </summary>
+    private List<ICardDisplay> CreateViewsForStacks(List<CardStack> stacks)
     {
         List<ICardDisplay> createdViews = new List<ICardDisplay>();
 
-        // 仮のカードIDリスト (このIDに対応するSpriteをCardDisplayのInspectorに設定してください)
-        List<string> cardIds = new List<string> { "S_A", "H_2", "D_3", "C_4", "S_5", "H_6" };
-
-        // 実際に生成する枚数を調整
-        int count = Mathf.Min(numberOfCards, cardIds.Count);
-
-        for (int i = 0; i < count; i++)
+        foreach (var stack in stacks)
         {
-            // 1. 各カードの初期位置を計算 (X軸方向に間隔を空けて配置)
-            Vector3 currentPosition = startPosition + new Vector3(i * cardSpacing, 0, 0);
-
-            // 2. 新しいCardDataを作成 (Model)
-            CardData newCardData = new CardData
+            // 全スタックの全カードに対してViewを生成
+            for (int i = 0; i < stack.Cards.Count; i++)
             {
-                Id = cardIds[i],
-                // Textは今回は省略
-                State = (i % 2 == 0) ? CardData.CardState.FACE_UP : CardData.CardState.FACE_DOWN_ALL, // 表面と裏面を交互に設定
-                ZIndex = (10 - i), // 重ね順を設定 (右に行くほどZIndexが低く、奥になる)
-                Position = currentPosition // 最初に計算した位置を設定
-            };
+                CardData data = stack.Cards[i];
 
-            // 3. Prefabをインスタンス化 (View)
-            CardDisplay newCard = Instantiate(cardPrefab, currentPosition, Quaternion.identity);
+                // Prefabをインスタンス化（スタックの基準位置に重ねて生成）
+                CardDisplay newCard = Instantiate(cardPrefab, data.Position, Quaternion.identity);
 
-            // 4. CardDisplayを初期化
-            newCard.Initialize(newCardData);
+                newCard.Initialize(data);
 
-            // 5. Presenterに渡すViewリストに追加
-            createdViews.Add(newCard);
+                createdViews.Add(newCard);
+            }
         }
-
         return createdViews;
     }
 }
