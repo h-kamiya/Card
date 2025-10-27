@@ -13,6 +13,11 @@ public class GameInitializer : MonoBehaviour
     public Vector3 initialStackPosition = new Vector3(0, 0, 0); // 最初のスタック（山札）を置く位置
     public int totalCards = 6; // 初期スタックに含めるカードの枚数 (最低2枚以上を想定)
 
+    /// <summary>
+    /// PopupMenu ViewのPrefab。Inspectorから割り当てられます。
+    /// </summary>
+    public PopupMenu popupMenuPrefab;
+
     private CardInteractionPresenter _presenter;
 
     void Start()
@@ -23,10 +28,17 @@ public class GameInitializer : MonoBehaviour
         // 2. Viewリストの準備（全てのCardDataに対応するViewを作成）
         List<ICardDisplay> views = CreateViewsForStacks(initialStacks);
 
-        // 3. Presenterを初期化し、Viewリストと全てのStackを渡してMVP接続を完了
+        // 3. PopupMenu Viewのインスタンス化 (UI Viewの準備)
+        PopupMenu popupMenuInstance = Instantiate(popupMenuPrefab);
+        popupMenuInstance.Hide();
+        
+        // 4. Presenterを初期化し、Viewリストと全てのStackを渡してMVP接続を完了
         if (views.Count > 0)
         {
-            _presenter = new CardInteractionPresenter(views, initialStacks);
+            /// <summary>
+            /// Presenterの新しいコンストラクタを使用し、IPopupMenuを依存性注入します。
+            /// </summary>
+            _presenter = new CardInteractionPresenter(views, initialStacks, popupMenuInstance);
 
             Debug.Log($"Game Initialized: Total {views.Count} cards created. Managing {initialStacks.Count} stacks. Presenter connected.");
         }

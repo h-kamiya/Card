@@ -25,6 +25,12 @@ namespace Game.Views
         event Action<CardDisplay> OnCardDoubleClick;
 
         /// <summary>
+        /// カードが右クリックされた際に発火します。
+        /// Presenterがこのイベントを購読し、ポップアップメニュー表示ロジックを実行します。
+        /// </summary>
+        event Action<CardDisplay> OnCardRightClick;
+
+        /// <summary>
         /// カードのドラッグが開始された際に発火します。
         /// <param name="Vector3">ドラッグ開始時のワールド座標。</param>
         /// </summary>

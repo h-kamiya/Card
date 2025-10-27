@@ -29,8 +29,16 @@ namespace Game.Presenters
         /// </summary>
         private readonly List<CardData> _selectedCardData = new List<CardData>();
 
-        // 動的に生成されるスタック（プレイヤーが場に作る束など）のIDを管理するためのカウンター
-        private int _dynamicStackCounter = 0;
+        /// <summary>
+        /// ポップアップメニューViewへの参照（インターフェースで保持）。メニューの表示・非表示を指示します。
+        /// </summary>
+        private readonly IPopupMenu _popupMenu;
+
+        /// <summary>
+        /// 現在右クリックによりメニューが開かれているCardStackのIDを保持します。
+        /// </summary>
+        private string _currentMenuStackId;
+
 
         /// <summary>
         /// CardInteractionPresenterの新しいインスタンスを初期化します。
@@ -46,6 +54,7 @@ namespace Game.Presenters
             {
                 view.OnCardSingleClick += HandleSingleClick;
                 view.OnCardDoubleClick += HandleDoubleClick;
+                view.OnCardRightClick += HandleRightClick;
 
                 // ★新規購読★: ドラッグイベント
                 view.OnCardDragStart += HandleDragStart;
@@ -54,18 +63,21 @@ namespace Game.Presenters
             }
         }
 
-        // ★修正点 2: 複数のCardStackを受け取るコンストラクタを新規追加（または既存のコンストラクタを変更）★
         /// <summary>
-        /// Presenterの新しいインスタンスを初期化し、Viewと全てのCardStackを接続します。
+        /// Presenterの新しいインスタンスを初期化し、View、CardStack、PopupMenuを接続します。
         /// </summary>
         /// <param name="views">シーン内に存在する全てのICardDisplay実装（View）のリスト。</param>
         /// <param name="initialStacks">Presenterが管理すべき全てのCardStackのリスト。</param>
-        public CardInteractionPresenter(List<ICardDisplay> views, List<CardStack> initialStacks)
+        /// <param name="popupMenu">ポップアップメニューViewのインスタンス。</param>
+        public CardInteractionPresenter(List<ICardDisplay> views, List<CardStack> initialStacks, IPopupMenu popupMenu)
         {
             _views = views;
 
             // Dictionaryを初期化し、リストからデータを登録
             _cardStacks = initialStacks.ToDictionary(stack => stack.Id, stack => stack);
+
+            _popupMenu = popupMenu;
+            _popupMenu.OnCancel += HandleMenuCancel;
 
             // Viewからの入力イベントを購読
             foreach (var view in _views)
@@ -73,6 +85,7 @@ namespace Game.Presenters
                 // ★修正箇所：クリック、ダブルクリック、ドラッグイベントの購読を追加
                 view.OnCardSingleClick += HandleSingleClick;
                 view.OnCardDoubleClick += HandleDoubleClick;
+                view.OnCardRightClick += HandleRightClick;
                 view.OnCardDragStart += HandleDragStart;
                 view.OnCardDragging += HandleDragging;
                 view.OnCardEndDrag += HandleEndDrag;
@@ -143,6 +156,53 @@ namespace Game.Presenters
             clickedView.UpdateVisuals();
 
             Debug.Log($"Presenter: Card {clickedView.CardData.Id} Flipped. New State: {clickedView.CardData.State}");
+        }
+
+        /// <summary>
+        /// 右クリックイベントを処理し、該当するCardStackを特定してメニュー表示を指示します。
+        /// </summary>
+        public void HandleRightClick(CardDisplay clickedView)
+        {
+            // 1. クリックされたCardDataを取得
+            CardData clickedData = clickedView.cardData; // CardDisplayからCardDataを取得
+
+            // 2. Model層のDictionaryを検索し、このCardDataを含むCardStackを見つける
+            var targetStackEntry = _cardStacks
+                .FirstOrDefault(kv => kv.Value.Cards.Contains(clickedData));
+
+            CardStack targetStack = targetStackEntry.Value;
+
+            // 3. スタックの存在確認と、特殊操作（シャッフル）の実行条件の確認
+            // 要件: スタックでありさえすればシャッフル/ドロー可能 (スタックの定義は2枚以上)
+            if (targetStack == null)
+            {
+                Debug.Log($"Right Click: Card {clickedData.Id} is not part of any CardStack (単体カード)。Menu not displayed.");
+                return;
+            }
+
+            // 2. メニュー表示の準備
+            _currentMenuStackId = targetStack.Id; // 現在操作対象のスタックIDを保持
+
+            // 3. メニュー項目を定義
+            MenuItem shuffleItem = new MenuItem
+            {
+                label = "シャッフル",
+                // シャッフルがクリックされたら、Presenterのシャッフルメソッドを実行するActionを定義
+                onClick = () => HandleShuffleStack(_currentMenuStackId)
+            };
+
+            // 4. メニューViewに表示を指示 (ワールド座標を画面座標に変換する必要がある)
+            Vector3 screenPosition = Camera.main.WorldToScreenPoint(clickedView.transform.position);
+
+            _popupMenu.Show(screenPosition, new MenuItem[] { shuffleItem });
+        }
+
+        /// <summary>
+        /// ポップアップメニューがメニュー外クリックなどで閉じられたときの処理。
+        /// </summary>
+        private void HandleMenuCancel()
+        {
+            Debug.Log("Popup Menu Cancelled.");
         }
 
         /// <summary>
@@ -241,6 +301,7 @@ namespace Game.Presenters
 
         /// <summary>
         /// 指定されたスタックIDのカードをシャッフルします。
+        /// この操作はPopupMenuからのみ呼び出されることを想定しています。
         /// </summary>
         /// <param name="stackId">シャッフル対象のCardStackのID。</param>
         public void HandleShuffleStack(string stackId)

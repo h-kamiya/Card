@@ -54,10 +54,11 @@ namespace Game.Views
         // Presenterはこのイベントを購読する
         public event Action<CardDisplay> OnCardSingleClick;
         public event Action<CardDisplay> OnCardDoubleClick;
+        public event Action<CardDisplay> OnCardRightClick;
         public event Action<CardDisplay, Vector3> OnCardDragStart;
         public event Action<CardDisplay, Vector3> OnCardDragging;
         public event Action<CardDisplay> OnCardEndDrag; // ★追加: ドラッグ終了イベント
-    
+
         // ICardDisplayインターフェースで要求されるプロパティの定義
         // Presenterがカードデータを参照するために使用
         public CardData CardData => cardData; // 既存の cardData フィールドを参照
@@ -246,11 +247,14 @@ namespace Game.Views
                     OnCardSingleClick?.Invoke(this); // イベント発火
                 }
             }
-    
             // ③ 右クリック（選択ロジックの代替）: 今回はシングルクリックで実装したので不要だが、残す場合は維持
             else if (eventData.button == PointerEventData.InputButton.Right)
             {
                 Debug.Log($"Card {cardData.Id} was right-clicked/long-pressed.");
+                OnCardRightClick?.Invoke(this);
+                // 右クリックはダブルクリックではないため、eventData.clickCountの確認は不要
+                // 処理を終了
+                return;
             }
         }
     }
