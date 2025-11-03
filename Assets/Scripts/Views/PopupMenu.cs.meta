@@ -1,2 +1,14 @@
 fileFormatVersion: 2
 guid: b18d37120bf7f9e498509433ae78cf2e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - buttonPrefab: {fileID: 4464622652398164237, guid: 407b8ed0f258cb24e9e76c97ddd7a28d, type: 3}
+  - menuPanel: {fileID: 2705878921964916740, guid: ff0d1596c77ce5244a64dd50c6aa9ffc, type: 3}
+  - blockerPanel: {fileID: 198295338861942740, guid: f2c15775bd3a13f49a21855694c7e718, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

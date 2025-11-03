@@ -1,6 +1,7 @@
 // PopupMenu.cs (Assets/Scripts/Views)
 
 using System;
+using TMPro; // TextMeshProUGUI を使うために必要
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
@@ -25,25 +26,14 @@ namespace Game.Views
         public RectTransform menuPanel;
 
         /// <summary>
+        /// メニュー外のクリックをハンドルするためのGameObject (Blocker Panel)。
+        /// </summary>
+        public GameObject blockerPanel; // Inspectorから割り当てる
+
+        /// <summary>
         /// メニューが表示中に、メニュー項目以外の場所がクリックされたときに発生します。
         /// </summary>
         public event Action OnCancel;
-
-        /// <summary>
-        /// フレームごとにメニュー外クリックを監視します。
-        /// </summary>
-        void Update()
-        {
-            // ... (Updateロジックは省略)
-            if (Input.GetMouseButtonDown(0))
-            {
-                if (gameObject.activeSelf)
-                {
-                    Hide();
-                    OnCancel?.Invoke();
-                }
-            }
-        }
 
         /// <summary>
         /// メニューを指定された画面座標に表示し、メニュー項目を動的に生成してバインドします。
@@ -52,16 +42,21 @@ namespace Game.Views
         /// <param name="items">メニューに表示する項目の配列。</param>
         public void Show(Vector3 screenPosition, MenuItem[] items)
         {
-            // 既存のボタンをクリア
-            foreach (Transform child in menuPanel)
+            // 1. 既存のボタンを安全にクリア (InvalidOperationException対策済み)
+            // 子要素をクリア
+            // 逆順で処理することで、インデックスのずれを防ぎます
+            for (int i = menuPanel.childCount - 1; i >= 0; i--)
             {
-                Destroy(child.gameObject);
+                Debug.Log(menuPanel == null);
+                // DestroyImmediateは使わず、次のフレームでのDestroyで十分です
+                Destroy(menuPanel.GetChild(i).gameObject);
             }
 
-            // 画面座標 (ワールド座標ではない) でメニューを表示
-            transform.position = screenPosition;
+            // 2. 画面座標 (ワールド座標ではない) でメニューを表示（RectTransform使用）
+            RectTransform rectTransform = GetComponent<RectTransform>();
+            rectTransform.position = screenPosition;
 
-            // メニュー項目を動的に生成
+            // 3. メニュー項目を動的に生成
             foreach (var item in items)
             {
                 // ボタンをインスタンス化
@@ -69,7 +64,7 @@ namespace Game.Views
                 Button button = buttonObject.GetComponent<Button>();
 
                 // テキストを設定
-                Text buttonText = buttonObject.GetComponentInChildren<Text>();
+                TextMeshProUGUI buttonText = buttonObject.GetComponentInChildren<TextMeshProUGUI>();
                 if (buttonText != null)
                 {
                     buttonText.text = item.label;
@@ -83,7 +78,15 @@ namespace Game.Views
                 });
             }
 
+            // 4. ブロッキングパネルとメニューコンテナを表示
+            if (blockerPanel != null)
+            {
+                blockerPanel.SetActive(true);
+            }
+
+            Debug.Log("gameObject.SetActive(true)");
             gameObject.SetActive(true); // メニューコンテナを表示
+
         }
 
         /// <summary>
@@ -91,6 +94,12 @@ namespace Game.Views
         /// </summary>
         public void Hide()
         {
+            if (blockerPanel != null)
+            {
+                blockerPanel.SetActive(false);
+            }
+
+            Debug.Log("gameObject.SetActive(false)");
             gameObject.SetActive(false);
         }
     }

@@ -170,15 +170,16 @@ namespace Game.Presenters
             var targetStackEntry = _cardStacks
                 .FirstOrDefault(kv => kv.Value.Cards.Contains(clickedData));
 
-            CardStack targetStack = targetStackEntry.Value;
-
             // 3. スタックの存在確認と、特殊操作（シャッフル）の実行条件の確認
+            // Keyがnullの場合、一致するCardStackが存在しない
             // 要件: スタックでありさえすればシャッフル/ドロー可能 (スタックの定義は2枚以上)
-            if (targetStack == null)
+            if (targetStackEntry.Key == null)
             {
-                Debug.Log($"Right Click: Card {clickedData.Id} is not part of any CardStack (単体カード)。Menu not displayed.");
-                return;
+                Debug.LogWarning($"Right Click: Card {clickedData.Id} is not part of any CardStack (単体カード)。Menu not displayed.");
+                return; // ★スタックが見つからなかったため、ここで処理を終了
             }
+
+            CardStack targetStack = targetStackEntry.Value;
 
             // 2. メニュー表示の準備
             _currentMenuStackId = targetStack.Id; // 現在操作対象のスタックIDを保持
@@ -193,6 +194,9 @@ namespace Game.Presenters
 
             // 4. メニューViewに表示を指示 (ワールド座標を画面座標に変換する必要がある)
             Vector3 screenPosition = Camera.main.WorldToScreenPoint(clickedView.transform.position);
+
+            // ログを追加して実行を確認
+            Debug.Log($"[DEBUG] Pop-up Menu Show() command sent at screen position: {screenPosition}");
 
             _popupMenu.Show(screenPosition, new MenuItem[] { shuffleItem });
         }
@@ -292,8 +296,16 @@ namespace Game.Presenters
                 _selectedCardData.Remove(data);
 
                 // 対応するViewを取得し、描画を更新（選択解除とZ-Index復元）
-                var view = _views.First(v => v.CardData == data);
-                view.UpdateVisuals();
+                var view = _views.FirstOrDefault(v => v.CardData == data);
+                if (view != null) // 安全チェックを追加
+                {
+                    view.UpdateVisuals();
+                }
+                else
+                {
+                    // Viewが存在しない場合はログを出力（Viewが先に破棄された場合の対処）
+                    Debug.LogWarning($"HandleEndDrag: View not found for CardData {data.Id}. Skipping visuals update.");
+                }
             }
 
             Debug.Log($"Presenter: Drag Ended. All {_selectedCardData.Count} cards deselected.");

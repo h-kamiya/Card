@@ -31,9 +31,18 @@ public class GameInitializer : MonoBehaviour
         // 3. PopupMenu Viewのインスタンス化 (UI Viewの準備)
         PopupMenu popupMenuInstance = Instantiate(popupMenuPrefab);
         popupMenuInstance.Hide();
-        
+
+        // ★★★ 修正: シーンのルートCanvasを取得し、親に設定する ★★★
+        Canvas rootCanvas = FindAnyObjectByType<Canvas>();
+
+        if (rootCanvas != null)
+        {
+            // Canvasの子に設定。falseでスケールや回転をリセット
+            popupMenuInstance.transform.SetParent(rootCanvas.transform, false);
+        }
+
         // 4. Presenterを初期化し、Viewリストと全てのStackを渡してMVP接続を完了
-        if (views.Count > 0)
+        if (views.Count > 0 && popupMenuInstance != null)
         {
             /// <summary>
             /// Presenterの新しいコンストラクタを使用し、IPopupMenuを依存性注入します。
